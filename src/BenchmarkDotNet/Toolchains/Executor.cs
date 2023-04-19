@@ -68,8 +68,10 @@ namespace BenchmarkDotNet.Toolchains
         {
             logger.WriteLineInfo($"// Execute: {process.StartInfo.FileName} {process.StartInfo.Arguments} in {process.StartInfo.WorkingDirectory}");
 
+            long start;
             try
             {
+                start = Stopwatch.GetTimestamp();
                 process.Start();
             }
             catch (Win32Exception ex)
@@ -89,8 +91,10 @@ namespace BenchmarkDotNet.Toolchains
 
             broker.ProcessData();
 
+            long end;
             if (!process.WaitForExit(milliseconds: (int)ExecuteParameters.ProcessExitTimeout.TotalMilliseconds))
             {
+                end = Stopwatch.GetTimestamp();
                 logger.WriteLineInfo("// The benchmarking process did not quit on time, it's going to get force killed now.");
 
                 processOutputReader.CancelRead();
@@ -98,19 +102,22 @@ namespace BenchmarkDotNet.Toolchains
             }
             else
             {
+                end = Stopwatch.GetTimestamp();
                 processOutputReader.StopRead();
             }
 
             if (broker.Results.Any(line => line.Contains("BadImageFormatException")))
                 logger.WriteLineError("You are probably missing <PlatformTarget>AnyCPU</PlatformTarget> in your .csproj file.");
 
-            return new ExecuteResult(true,
+            return new MyExecuteResult(true,
                 process.HasExited ? process.ExitCode : null,
                 process.Id,
                 broker.Results,
                 broker.PrefixedOutput,
                 processOutputReader.GetOutputLines(),
-                launchIndex);
+                launchIndex,
+                start,
+                end);
         }
 
         private static ProcessStartInfo CreateStartInfo(BenchmarkCase benchmarkCase, ArtifactsPaths artifactsPaths, string args, IResolver resolver)

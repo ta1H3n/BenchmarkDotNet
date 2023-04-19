@@ -86,6 +86,7 @@ namespace BenchmarkDotNet.Toolchains.DotNetCli
 
                 diagnoser?.Handle(HostSignal.BeforeProcessStart, new DiagnoserActionParameters(process, benchmarkCase, benchmarkId));
 
+                var startTime = Stopwatch.GetTimestamp();
                 process.Start();
                 processOutputReader.BeginRead();
 
@@ -97,8 +98,10 @@ namespace BenchmarkDotNet.Toolchains.DotNetCli
 
                 broker.ProcessData();
 
+                long endTime;
                 if (!process.WaitForExit(milliseconds: (int)ExecuteParameters.ProcessExitTimeout.TotalMilliseconds))
                 {
+                    endTime = Stopwatch.GetTimestamp();
                     logger.WriteLineInfo($"// The benchmarking process did not quit within {ExecuteParameters.ProcessExitTimeout.TotalSeconds} seconds, it's going to get force killed now.");
 
                     processOutputReader.CancelRead();
@@ -106,16 +109,19 @@ namespace BenchmarkDotNet.Toolchains.DotNetCli
                 }
                 else
                 {
+                    endTime = Stopwatch.GetTimestamp();
                     processOutputReader.StopRead();
                 }
 
-                return new ExecuteResult(true,
+                return new MyExecuteResult(true,
                     process.HasExited ? process.ExitCode : null,
                     process.Id,
                     broker.Results,
                     broker.PrefixedOutput,
                     processOutputReader.GetOutputLines(),
-                    launchIndex);
+                    launchIndex,
+                    startTime,
+                    endTime);
             }
         }
     }
